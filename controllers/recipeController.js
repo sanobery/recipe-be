@@ -1,13 +1,16 @@
-import Recipe, { countDocuments, find, findById, findOne, username as _username, email as _email, password as _password, save, deleteOne } from '../models/recipes';
-import asyncHandler from 'express-async-handler';
-import { hash, compare } from 'bcrypt';
-import { AES, enc } from "crypto-js";
-import { findById as _findById } from '../models/users';
-import mongoose from "mongoose";
-import { aggregate, find as _find } from '../models/rates';
-import { find as __find } from '../models/comments';
+const Recipe = require('../models/recipes')
+const asyncHandler = require('express-async-handler')
+const bcrypt = require('bcrypt')
+const CryptoJS = require("crypto-js");
+const User = require('../models/users')
+const mongoose = require("mongoose");
+const Rate = require('../models/rates')
+const Comment = require('../models/comments')
 
 const SECRET_KEY = process.env.SECRET_KEY;
+
+
+
 
 const getAllRecipe = asyncHandler(async (req, res) => {
     const pageNumber = parseInt(req.query.page) || 1;
@@ -17,9 +20,9 @@ const getAllRecipe = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: "Invalid page or limit parameter" });
     }
 
-    const totalRecipes = await countDocuments();
+    const totalRecipes = await Recipe.countDocuments();
 
-    const recipes = await find()
+    const recipes = await Recipe.find()
         .sort({ createdAt: -1 })
         .skip((pageNumber - 1) * limitNumber)
         .limit(limitNumber)
@@ -34,7 +37,7 @@ const getAllRecipe = asyncHandler(async (req, res) => {
     const recipeIds = recipes.map(recipe => recipe._id);
 
     //  Fetch and compute average ratings for these recipes
-    const ratingsData = await aggregate([
+    const ratingsData = await Rate.aggregate([
         { $match: { recipeId: { $in: recipeIds } } }, // Match recipes in our list
         {
             $group: {
@@ -75,7 +78,7 @@ const createNewRecipe = asyncHandler(async (req, res) => {
     }
 
     //  Find user
-    const user = await _findById(cleanUserId);
+    const user = await User.findById(cleanUserId);
     if (!user) {
         return res.status(400).json({ message: "Invalid user ID" });
     }
@@ -93,7 +96,7 @@ const createNewRecipe = asyncHandler(async (req, res) => {
     await newRecipe.save();
 
     //  Fetch updated total count of recipes
-    const totalRecipes = await countDocuments();
+    const totalRecipes = await Recipe.countDocuments();
 
     return res.status(200).json({
         message: "Recipe created successfully",
@@ -114,23 +117,23 @@ const updateRecipe = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'All are required fields.' })
     }
 
-    const userExist = await findById({ userid }).lean()
+    const userExist = await Recipe.findById({ userid }).lean()
 
     if (!userExist) {
         return res.status(400).json({ message: 'Invalid Recipe!' });
     }
 
-    const duplicate = await findOne({ email: email }).lean()
+    const duplicate = await Recipe.findOne({ email: email }).lean()
 
     if (duplicate && duplicate?._id.toString() !== userid) {
         return res.status(409).json({ message: 'Duplicate email!' })
     }
 
-    _username = username
-    _email = email
-    const hashPassword = await hash(password, 10)
-    _password = hashPassword
-    const userUpdated = await save()
+    Recipe.username = username
+    Recipe.email = email
+    const hashPassword = await bcrypt.hash(password, 10)
+    Recipe.password = hashPassword
+    const userUpdated = await Recipe.save()
 
     if (userUpdated) {
         return res.status(200).json({ message: userUpdated, userId: userUpdated._id.toString() });
@@ -148,15 +151,15 @@ const getRecipeById = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'RecipeId is required.' });
     }
 
-    const recipe = await findById(id).populate("userId", "username").lean();
+    const recipe = await Recipe.findById(id).populate("userId", "username").lean();
 
     if (!recipe) {
         return res.status(404).json({ message: 'No recipe found!' });
     }
-    const comments = await __find({ recipeId: (id) })
+    const comments = await Comment.find({ recipeId: (id) })
         .populate("userId", "username").lean();
 
-    const ratings = await _find({ recipeId: id }).populate("userId", "username").lean();
+    const ratings = await Rate.find({ recipeId: id }).populate("userId", "username").lean();
 
     const averageRating = ratings.length > 0
         ? ratings.reduce((sum, r) => sum + r.rate, 0) / ratings.length
@@ -177,7 +180,7 @@ const getRecipeByUser = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'User Id is required fields.' })
     }
 
-    const recipe = await find({ userId: userId })
+    const recipe = await Recipe.find({ userId: userId })
 
     if (!recipe || recipe.length === 0) {
         return res.status(409).json({ message: 'No recipe!' })
@@ -195,11 +198,12 @@ const deleteRecipe = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'RecipeId is required fields.' })
     }
 
-    const user = await findOne({ userId }).lean()
+
+    const user = await Recipe.findOne({ userId }).lean()
     if (!user) {
         return res.status(400).json({ message: 'Recipe not Found' })
     }
-    const deletedRecipe = await deleteOne()
+    const deletedRecipe = await Recipe.deleteOne()
 
     const reply = `Recipename ${deletedRecipe.username} deleted`
     return res.status(200).json({ message: reply })
@@ -211,14 +215,14 @@ const checkRecipe = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'All are required fields.' })
     }
 
-    const user = await findOne({ email });
+    const user = await Recipe.findOne({ email });
     if (!user) return res.status(401).json({ message: "Invalid email or password" });
 
     // Decrypt the password
-    const decryptedPassword = AES.decrypt(password, SECRET_KEY).toString(enc.Utf8);
+    const decryptedPassword = CryptoJS.AES.decrypt(password, SECRET_KEY).toString(CryptoJS.enc.Utf8);
 
     // Compare decrypted password with hashed password from DB
-    const isMatch = await compare(decryptedPassword, user.password);
+    const isMatch = await bcrypt.compare(decryptedPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: "Invalid email or password" });
 
     res.json({ message: "Login successful" });
@@ -228,19 +232,20 @@ const checkRecipe = asyncHandler(async (req, res) => {
 
 const getRecipeByIngredient = asyncHandler(async (req, res) => {
     const { ingredient } = req.body
+    const { page = 1, limit = 5 } = req.query; // ⬅️ Get page & limit from query params
 
-    const totalRecipes = await countDocuments({
+    const totalRecipes = await Recipe.countDocuments({
         ingredients: { $regex: new RegExp(ingredient, "i") }
     });
     if (!ingredient) {
         return res.status(400).json({ message: 'Search Bar is empty.' })
     }
-    const recipes = await find({ ingredients: { $regex: new RegExp(ingredient, "i") } }).populate("userId", "username").lean()
+    const recipes = await Recipe.find({ ingredients: { $regex: new RegExp(ingredient, "i") } }).populate("userId", "username").lean()
 
     const recipeIds = recipes.map(recipe => recipe._id);
 
     //  Fetch and compute average ratings for these recipes
-    const ratingsData = await aggregate([
+    const ratingsData = await Rate.aggregate([
         { $match: { recipeId: { $in: recipeIds } } }, // Match recipes in our list
         {
             $group: {
@@ -270,4 +275,4 @@ const getRecipeByIngredient = asyncHandler(async (req, res) => {
     }
 })
 
-export default { getAllRecipe, createNewRecipe, updateRecipe, deleteRecipe, checkRecipe, getRecipeById, getRecipeByUser, getRecipeByIngredient }
+module.exports = { getAllRecipe, createNewRecipe, updateRecipe, deleteRecipe, checkRecipe, getRecipeById, getRecipeByUser, getRecipeByIngredient }
