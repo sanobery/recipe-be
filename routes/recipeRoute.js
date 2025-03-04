@@ -33,7 +33,7 @@ const storage = multer.diskStorage({
 
 // File filter to allow only PNG, JPEG, JPG formats
 const fileFilter = (req, file, cb) => {
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
 
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true); // Accept file
@@ -61,6 +61,7 @@ router.get('/filter', getRecipesWithSpecificRate);
 
 router.post('/search', getRecipeByIngredient);
 router.post('/comment', verifyJwt, rateOrCommentRecipe);
+router.post('/update', updateRecipe);
 
 router.get('/:id', getRecipeById);
 router.post('/:userId', getRecipeByUser);

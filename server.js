@@ -18,7 +18,6 @@ app.use('/', express.static(path.join(__dirname, '/public/')))
 app.use('/uploads', express.static('uploads'));
 app.use('/', require('./routes/route.js'))
 app.use('/auth', require('./routes/authRoute.js'))
-app.use('/user', require('./routes/userRoute.js'))
 app.use('/recipe', require('./routes/recipeRoute.js'))
 
 app.all('*', (req, resp) => {

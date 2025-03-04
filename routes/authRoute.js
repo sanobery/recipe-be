@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { login, logout, refresh, getCurrentUser } = require('../controllers/authController')
+const { login, logout, refresh, getCurrentUser, createNewUser, updateUser } = require('../controllers/authController')
 const loginLimiter = require('../middleware/loginLimiter')
 
 router.route('/')
@@ -9,8 +9,14 @@ router.route('/')
 router.route('/refresh')
     .get(refresh)
 
-router.route('/user')
+router.route('/profile')
     .get(getCurrentUser)
+
+router.route('/updateUser')
+    .post(updateUser)
+
+router.route('/signup')
+    .post(createNewUser)
 
 router.route('/logout')
     .post(logout)

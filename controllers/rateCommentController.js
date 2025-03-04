@@ -67,138 +67,105 @@ const rateOrCommentRecipe = asyncHandler(async (req, res) => {
     return res.status(200).json({ message: responseMessage });
 });
 
-const getFilterRecipe = asyncHandler(async (req, res) => {
-    try {
-        console.log("Received Query Params:", req.query); // Debugging
+const getRecipesWithSpecificRate = asyncHandler(async (req, res) => {
+    const { rating, preparationtime } = req.query;
+    let recipeData = [];
 
-        const { rating } = req.query; // Extract rating
-
-        if (!rating) {
-            return res.status(400).json({ error: "Rating parameter is required" });
-        }
-
-        // Fetch Rate and JOIN with Recipe model
-        const mongooseQuery = await Rate.find({ rate: String(rating) })
-            .populate({
-                path: "recipeId", // Field in Rate referencing Recipe
-                model: "recipe",  // Reference the Recipe model
-            })
-            .populate({
-                path: "userId", // Reference the user
-                model: "User", // Explicitly set the model
-                select: "username", // Get only username
-                match: { userId: { $exists: true } }, // Ensure userId exists
-                localField: "userId", // Tell Mongoose to match on "userId"
-                foreignField: "userId", // Match with "userId" in the User model
-                options: { strictPopulate: false } // Allow custom field population
-            });
-
-
-
-        if (mongooseQuery.length === 0) {
-            return res.status(404).json({ message: "No recipes found with this rating" });
-        }
-
-        res.status(200).json({ recipes: mongooseQuery }); // Send full recipe data
-    } catch (error) {
-        console.error("Error fetching recipes:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+    if (rating) {
+        recipeData = await getRecipesByRate(rating);  // Await the function call
     }
+
+    if (preparationtime) {
+        recipeData = await getRecipesByPreparationTime(preparationtime);
+    }
+
+    return res.status(recipeData.status).json(recipeData);
 });
 
-
-// const getRecipesWithSpecificRate = asyncHandler(async (req, res) => {
-//     // Step 1: Get the rating filter from query parameters
-//     const { rating } = req.query;
-
-//     if (!rating) {
-//         return res.status(400).json({ message: "Rating query parameter is required." });
-//     }
-
-//     const specificRate = Number(rating);
-//     if (isNaN(specificRate) || specificRate < 1 || specificRate > 5) {
-//         return res.status(400).json({ message: "Invalid rating. It must be between 1 and 5." });
-//     }
-
-//     // Step 2: Find all recipes that have at least one rating of `specificRate`
-//     const recipesWithSpecificRate = await Rate.aggregate([
-//         { $match: { rate: specificRate } }, // Filter ratings with the given rate
-//     ]);
-
-//     if (recipesWithSpecificRate.length === 0) {
-//         return res.status(404).json({ message: "No recipes found with the given rating." });
-//     }
-
-//     // Step 3: Get all recipeIds that matched the criteria
-//     const recipeIds = recipesWithSpecificRate.map(r => r._id);
-
-//     // Step 4: Fetch recipe details for the filtered recipeIds
-//     const recipes = await Recipe.find({ _id: { $in: recipeIds } });
-
-//     // Step 5: Merge the average rating with recipe details
-//     const result = recipes.map(recipe => {
-//         const ratingData = recipesWithSpecificRate.find(r => r._id.toString() === recipe._id.toString());
-//         return {
-//             recipe,
-//             averageRating: ratingData ? ratingData.avgRating : 0
-//         };
-//     });
-
-//     return res.status(200).json(result);
-// });
-
-const getRecipesWithSpecificRate = asyncHandler(async (req, res) => {
-    // Step 1: Get the rating filter from query parameters
-    const { rating } = req.query;
-
+const getRecipesByRate = async (rating) => {
     if (!rating) {
-        return res.status(400).json({ message: "Rating query parameter is required." });
+        return { status: 400, message: "Query parameter is required." };
     }
 
     const specificRate = Number(rating);
     if (isNaN(specificRate) || specificRate < 1 || specificRate > 5) {
-        return res.status(400).json({ message: "Invalid rating. It must be between 1 and 5." });
+        return { status: 400, message: "Invalid rating. It must be between 1 and 5." };
     }
 
-    // Step 2: Aggregate to calculate the average rating per recipe
     const avgRatings = await Rate.aggregate([
         {
             $group: {
                 _id: "$recipeId",
-                avgRating: { $avg: "$rate" } // Compute average rating per recipe
+                avgRating: { $avg: "$rate" }
             }
         },
         {
-            $addFields: { avgRatingCeil: { $ceil: "$avgRating" } } // Round up avgRating
+            $addFields: { avgRatingCeil: { $ceil: "$avgRating" } }
         },
         {
-            $match: { avgRatingCeil: specificRate } // Filter recipes with matching average rating
+            $match: { avgRatingCeil: specificRate }
         }
     ]);
 
     if (avgRatings.length === 0) {
-        return res.status(404).json({ message: "No recipes found with the given average rating." });
+        return { status: 404, message: "No recipes found with the given average rating." };
     }
-    console.log(avgRatings, 179);
 
-    // Step 3: Extract recipe IDs
     const recipeIds = avgRatings.map(r => r._id);
 
-    // Step 4: Fetch recipe details for matched recipeIds
-    const recipes = await Recipe.find({ _id: { $in: recipeIds } });
+    const recipes = await Recipe.find({ _id: { $in: recipeIds } })
+        .populate('userId', 'username')
+        .lean();
 
-    // Step 5: Merge recipe details with their respective average ratings
     const result = recipes.map(recipe => {
         const ratingData = avgRatings.find(r => r._id.toString() === recipe._id.toString());
         return {
-            recipe,
+            ...recipe,
+            userId: { _id: recipe.userId._id, username: recipe.userId.username },
             averageRating: ratingData ? ratingData.avgRating : 0
         };
     });
 
-    return res.status(200).json({ recipes: result });
-});
+    return { status: 200, recipes: result, total: result.length };
+};
 
-// Example usage:
+const getRecipesByPreparationTime = async (preparationTime) => {
+
+    if (!preparationTime) {
+        return { status: 400, message: "Query parameter is required." };
+    }
+
+    const [minTime, maxTime] = preparationTime.split("-").map(Number);
+
+    if (isNaN(minTime) || isNaN(maxTime)) {
+        return res.status(400).json({ message: "Preparation time should be numeric." });
+    }
+
+    const recipes = await Recipe.find({ preparationTime: { $gte: minTime, $lte: maxTime } }).populate('userId', 'username').lean();
+
+    const avgRatings = await Rate.aggregate([
+        {
+            $group: {
+                _id: "$recipeId",
+                avgRating: { $avg: "$rate" }
+            }
+        }
+    ]);
+
+    if (avgRatings.length === 0) {
+        return { status: 404, message: "No recipes found with the given average rating." };
+    }
+
+    const result = recipes.map(recipe => {
+        const ratingData = avgRatings.find(r => r._id.toString() === recipe._id.toString());
+        return {
+            ...recipe,
+            userId: { _id: recipe.userId._id, username: recipe.userId.username },
+            averageRating: ratingData ? ratingData.avgRating : 0
+        };
+    });
+
+    return { status: 200, recipes: result, total: result.length };
+};
 
 module.exports = { rateOrCommentRecipe, getRecipesWithSpecificRate }

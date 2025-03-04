@@ -21,6 +21,7 @@ const login = asyncHandler(async (req, res) => {
 
     // Compare decrypted password with hashed password from DB
     const isMatch = await bcrypt.compare(decryptedPassword, user.password);
+
     if (!isMatch) return res.status(401).json({ message: "Invalid email or password" });
 
     const accessToken = jsonWebToken.sign({
@@ -90,7 +91,7 @@ const getCurrentUser = (req, res) => {
             return res.status(400).json({ message: 'UserId is required Field.' })
         }
 
-        const userExist = await User.findOne({ userId }).lean()
+        const userExist = await User.findById({ _id: userId }).lean()
 
         if (!userExist) {
             return res.status(400).json({ message: 'Invalid User!' });
@@ -113,4 +114,99 @@ const logout = (req, res) => {
 
 }
 
-module.exports = { login, refresh, logout, getCurrentUser }
+const createNewUser = asyncHandler(async (req, res) => {
+    const { username, email, password } = req.body;
+    const errors = [];
+
+    // Username validation (at least 4 characters)
+    if (!username || username.length < 4) {
+        errors.push("Username must be at least 4 characters long.");
+    }
+    const decryptedPassword = CryptoJS.AES.decrypt(password, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+
+    // Password validation (8-16 characters, uppercase, lowercase, number, special char)
+    if (!password) {
+        errors.push("Password is required.");
+    } else {
+
+        if (decryptedPassword.length < 8 || decryptedPassword.length > 16) {
+            errors.push("Password must be between 8 to 16 characters long.");
+        }
+        if (!/[A-Z]/.test(decryptedPassword)) {
+            errors.push("Password must include at least one uppercase letter.");
+        }
+        if (!/[a-z]/.test(decryptedPassword)) {
+            errors.push("Password must include at least one lowercase letter.");
+        }
+        if (!/\d/.test(decryptedPassword)) {
+            errors.push("Password must include at least one number.");
+        }
+        if (!/[@$!%*?&]/.test(decryptedPassword)) {
+            errors.push("Password must include at least one special character (@$!%*?&).");
+        }
+    }
+
+    // If there are validation errors, return them
+    if (errors.length > 0) {
+        return res.status(400).json({ message: errors.join(" ") });
+    }
+
+    // Check if user already exists
+    const userExist = await User.findOne({ email: email }).lean();
+    if (userExist) {
+        return res.status(400).json({ message: "User already exists!" });
+    }
+
+    // Hash password before storing
+    const hashPassword = await bcrypt.hash(decryptedPassword, 10);
+    const userCreated = await User.create({ username, email, password: hashPassword });
+
+    if (userCreated) {
+        return res.status(200).json({
+            message: "Sign-up successful! Redirecting to login page in 2 seconds...",
+            user: userCreated
+        });
+    } else {
+        return res.status(409).json({ message: "Invalid user details!" });
+    }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+    const { userId, username, email, password } = req.body;
+
+    if (!userId || !username || !email || !password) {
+        return res.status(400).json({ message: 'All fields are required.' });
+    }
+
+    const userExist = await User.findById(userId).lean(); // Fetch user
+
+    if (!userExist) {
+        return res.status(400).json({ message: 'Invalid User!' });
+    }
+
+    const duplicate = await User.findOne({ email }).lean(); // Check for duplicate email
+    if (duplicate && duplicate._id.toString() !== userId) {
+        return res.status(409).json({ message: 'Duplicate email!' });
+    }
+
+    // Hash the new password
+    const decryptedPassword = CryptoJS.AES.decrypt(password, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+
+    const hashedPassword = await bcrypt.hash(decryptedPassword, 10);
+
+    // Update user using findByIdAndUpdate
+    const userUpdated = await User.findByIdAndUpdate(
+        userId,
+        { username, email, password: hashedPassword },
+        { new: true }
+    );
+
+    if (userUpdated) {
+        return res.status(200).json({ message: 'User updated successfully!', userId: userUpdated._id.toString() });
+    } else {
+        return res.status(500).json({ message: 'Failed to update user!' });
+    }
+});
+
+
+module.exports = { login, refresh, logout, getCurrentUser, createNewUser, updateUser }
