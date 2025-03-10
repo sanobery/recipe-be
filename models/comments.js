@@ -23,4 +23,4 @@ const rateSchema = new Schema({
 
 const rateComment = new model('recipe_comments', rateSchema)
 
-// export default rateComment
+export default rateComment
