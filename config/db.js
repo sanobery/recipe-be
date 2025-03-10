@@ -1,13 +1,19 @@
-const mongoose = require('mongoose')
+import { connect } from 'mongoose'
+import dotenv from 'dotenv'
+import process from 'process'
+dotenv.config()
+
 const URI = process.env.MONGODB_URI
 
 const db = async () => {
     try {
-        await mongoose.connect(URI);
+        await connect(URI)
 
-    } catch (error) {
-        process.exit(0);
+    }
+    // eslint-disable-next-line no-unused-vars
+    catch (error) {
+        process.exit(1)
     }
 }
 
-module.exports = db 
+export default db 

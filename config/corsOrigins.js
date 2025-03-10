@@ -1,16 +1,15 @@
-const allowedOrigins = require('./allowedOrigins')
+import allowedOrigins from './allowedOrigins.js';
 
 const corsOrigins = {
-
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-            callback(null, true)
+            callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORs'))
+            callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
     optionsSuccessStatus: 200
-}
+};
 
-module.exports = corsOrigins
+export default corsOrigins;

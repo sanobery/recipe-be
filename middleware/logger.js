@@ -1,19 +1,27 @@
-const { format } = require('date-fns')
-const { v4: uuid } = require('uuid')
-const fs = require('fs')
-const fsPromises = require('fs').promises
-const path = require('path')
+import { format } from 'date-fns'
+import { v4 as uuid } from 'uuid'
+import { existsSync } from 'fs'
+import { promises as fsPromises } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+// ✅ Fix for __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const logEvents = async (message, logFileName) => {
     const dateTime = `${format(new Date(), 'yyyyMMdd\tHH:mm:ss')}`
-    const logItem = `${(dateTime)} \t${uuid()} \t${message}\n`
+    const logItem = `${dateTime} \t${uuid()} \t${message}\n`
+
     try {
-        if (!fs.existsSync(path.join(__dirname, '..', 'logs'))) {
-            await fsPromises.mkdir(path.join(__dirname, '..', 'logs'))
+        const logDir = join(__dirname, '..', 'logs')
+
+        if (!existsSync(logDir)) {
+            await fsPromises.mkdir(logDir, { recursive: true })
         }
-        await fsPromises.appendFile(path.join(__dirname, '..', 'logs', logFileName), logItem)
+        await fsPromises.appendFile(join(logDir, logFileName), logItem)
     } catch (err) {
-        console.error(err);
+        console.error(err)
     }
 }
 
@@ -22,4 +30,4 @@ const logger = (req, res, next) => {
     next()
 }
 
-module.exports = { logEvents, logger }
+export { logEvents, logger }

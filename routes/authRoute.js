@@ -1,13 +1,12 @@
-const express = require('express')
-const router = express.Router()
-const { login, logout, refresh, getCurrentUser, createNewUser, updateUser } = require('../controllers/authController')
-const loginLimiter = require('../middleware/loginLimiter')
+import { Router } from 'express'
+const router = Router()
+import { login, logout, refresh, getCurrentUser, createNewUser, updateUser } from '../controllers/authController.js'
 
 router.route('/')
     .post(login)
 
 router.route('/refresh')
-    .get(refresh)
+    .post(refresh)
 
 router.route('/profile')
     .get(getCurrentUser)
@@ -21,4 +20,4 @@ router.route('/signup')
 router.route('/logout')
     .post(logout)
 
-module.exports = router
+export default router

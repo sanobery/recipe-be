@@ -1,13 +1,13 @@
-const mongoose = require('mongoose')
+import { Schema, model } from 'mongoose'
 
-const rateSchema = new mongoose.Schema({
+const rateSchema = new Schema({
     recipeId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         required: true,
         ref: "recipe"
     },
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
+        type: Schema.Types.ObjectId,
         required: true,
         ref: "users"
     },
@@ -23,6 +23,6 @@ const rateSchema = new mongoose.Schema({
     },
 })
 
-const rateComment = new mongoose.model('recipe_rates', rateSchema)
+const rateComment = new model('recipe_rates', rateSchema)
 
-module.exports = rateComment
+export default rateComment

@@ -1,27 +1,35 @@
-require('dotenv').config()
-const express = require('express')
-const app = express()
-const path = require('path')
-const { logger } = require('./middleware/logger')
-const PORT = process.env.PORT || 3500
-const cors = require('cors')
-const cookieParser = require('cookie-parser')
-const corsOrigins = require('./config/corsOrigins')
-const db = require('./config/db')
+import dotenv from 'dotenv'
+import process from 'process'
+dotenv.config()
+import express from 'express'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import corsOrigins from './config/corsOrigins.js'
+import db from './config/db.js'
 
-app.use(logger)
+const app = express()
+const PORT = process.env.PORT
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+import authRoute from './routes/authRoute.js'
+import recipeRoute from './routes/recipeRoute.js'
+
 app.use(cors(corsOrigins))
 app.use(cookieParser())
 app.use(express.json())
 
-app.use('/', express.static(path.join(__dirname, '/public/')))
-app.use('/uploads', express.static('uploads'));
-app.use('/', require('./routes/route.js'))
-app.use('/auth', require('./routes/authRoute.js'))
-app.use('/recipe', require('./routes/recipeRoute.js'))
+app.use(express.static(join(__dirname, 'public')))
+app.use('/uploads', express.static(join(__dirname, 'uploads')))
+
+app.use('/auth', authRoute)
+app.use('/recipe', recipeRoute)
 
 app.all('*', (req, resp) => {
-    resp.sendFile(path.join(__dirname, 'views', '404.html'))
+    resp.sendFile(join(__dirname, 'views', '404.html'))
 })
 
 db().then(() => {
