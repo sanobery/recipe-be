@@ -15,6 +15,8 @@ const { AES, enc } = CryptoJS
 import jwt from 'jsonwebtoken'
 const { sign, verify } = jwt
 import User from '../models/users.js'
+import { checkEmail } from '../repositories/authDb.js'
+import { responseHandler } from '../utils/responseHandler.js'
 
 const SECRET_KEY = process.env.SECRET_KEY
 
@@ -34,14 +36,16 @@ const login = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'All are required fields.' })
     }
 
-    const user = await User.findOne({ email })
-    if (!user) return res.status(401).json({ message: "Invalid user! Please Sign-Up" })
+    const user = await checkEmail(email)
+    if (!user)
+        return responseHandler(res, 401, "Invalid user! Please Sign-Up")
 
     const decryptedPassword = AES.decrypt(password, SECRET_KEY).toString(enc.Utf8)
 
     const isMatch = await compare(decryptedPassword, user.password)
 
-    if (!isMatch) return res.status(401).json({ message: "Invalid email or password" })
+    if (!isMatch)
+        return responseHandler(res, 401, "Invalid email or password")
 
     const accessToken = sign({
         "userinfo": {
@@ -49,7 +53,7 @@ const login = asyncHandler(async (req, res) => {
         },
     },
         process.env.ACCESS_SECRET_KEY,
-        { expiresIn: '10m' }
+        { expiresIn: '6s' }
     )
 
     const refreshToken = sign({
@@ -68,7 +72,7 @@ const login = asyncHandler(async (req, res) => {
         maxAge: 24 * 60 * 60 * 1000
     })
 
-    res.json({ message: "Login successful! Closing in 1 seconds...", accessToken })
+    return responseHandler(res, 200, "Login successful! Closing in 1 seconds...", { accessToken })
 })
 
 
@@ -83,20 +87,21 @@ const login = asyncHandler(async (req, res) => {
 const refresh = (req, res) => {
     const cookies = req.cookies
 
-    if (!cookies?.jwt) return res.status(401).json({ message: 'Unauthorized user' })
+    if (!cookies?.jwt)
+        return responseHandler(res, 401, 'Unauthorized user')
 
     const refreshToken = cookies.jwt
 
     verify(refreshToken, process.env.REFRESH_SECRET_KEY, (err, decoded) => {
         if (err) {
-            return res.status(403).json({ message: 'Forbidden: Invalid token' })
+            return responseHandler(res, 401, 'Forbidden: Invalid token')
         }
 
         const user = { userinfo: { userId: decoded?.userinfo?.user?._id } }
 
         const newAccessToken = sign(user, process.env.ACCESS_SECRET_KEY, { expiresIn: '10m' })
 
-        res.json({ accessToken: newAccessToken })
+        return responseHandler(res, 200, 'Token Refreshed', { accessToken: newAccessToken })
     })
 }
 

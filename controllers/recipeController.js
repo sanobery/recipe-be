@@ -3,55 +3,45 @@ import asyncHandler from 'express-async-handler'
 import User from '../models/users.js'
 import Rate from '../models/rates.js'
 import Comment from '../models/comments.js'
+import { actionGetAllRecipe, actionGetRecipeByUser } from '../repositories/recipeDb.js'
+import logger from '../middleware/logger.js'
+import redisClient from '../config/redisCache.js'
+import { responseHandler } from '../utils/responseHandler.js'
 
 /**Retrieves all recipes with pagination, sorted by creation date.
  * Also calculates the average rating for each recipe.
  */
 const getAllRecipe = asyncHandler(async (req, res) => {
     const pageNumber = parseInt(req.query.page) || 1
-    const limitNumber = parseInt(req.query.limit) || 5
+    const limitNumber = parseInt(req.query.limit) || 4
 
     if (isNaN(pageNumber) || isNaN(limitNumber)) {
-        return res.status(400).json({ message: "Invalid page or limit parameter" })
+        logger.warn("Invalid page or limit parameter")
+        return responseHandler(res, 400, "Invalid page or limit parameter")
     }
 
-    const totalRecipes = await Recipe.countDocuments()
+    const cacheKey = `recipes:page:${pageNumber}:limit:${limitNumber}`
 
-    const recipes = await Recipe.find()
-        .sort({ createdAt: -1 })
-        .skip((pageNumber - 1) * limitNumber)
-        .limit(limitNumber)
-        .populate("userId", "username")
-        .lean()
-
-    if (!recipes.length) {
-        return res.status(400).json({ message: "No Recipe Found" })
+    // Check if data is already cached in Redis
+    const cachedData = await redisClient.get(cacheKey)
+    if (cachedData) {
+        logger.info(`Cache hit for ${cacheKey}`)
+        return responseHandler(res, 200, "Successfully retrieved recipes", JSON.parse(cachedData))
     }
 
-    const recipeIds = recipes.map(recipe => recipe._id)
+    // If no cache, fetch from database
+    const getRecipeDetails = await actionGetAllRecipe(pageNumber, limitNumber)
 
-    const ratingsData = await Rate.aggregate([
-        { $match: { recipeId: { $in: recipeIds } } },
-        {
-            $group: {
-                _id: "$recipeId",
-                averageRating: { $avg: "$rate" }
-            }
-        }
-    ])
+    if (!getRecipeDetails || !getRecipeDetails?.recipes?.length) {
+        logger.warn("No recipes found")
+        return responseHandler(res, 404, "No recipes found")
+    }
 
-    const ratingsMap = {}
-    ratingsData.forEach(rating => {
-        ratingsMap[rating._id.toString()] = rating.averageRating.toFixed(1)
-    })
+    // Store the fetched data in Redis with expiration (e.g., 10 minutes)
+    await redisClient.set(cacheKey, JSON.stringify(getRecipeDetails), "EX", 600)
 
-    const formattedRecipes = recipes.map(recipe => ({
-        ...recipe,
-        userId: { _id: recipe.userId._id, username: recipe.userId.username },
-        averageRating: parseFloat(ratingsMap[recipe._id.toString()] || 0)
-    }))
-
-    return res.json({ recipes: formattedRecipes, total: totalRecipes })
+    logger.info(`Successfully retrieved ${getRecipeDetails.recipes.length} recipes`)
+    return responseHandler(res, 200, getRecipeDetails)
 })
 
 /**Creates a new recipe entry with the given details.
@@ -178,14 +168,8 @@ const getRecipeByUser = asyncHandler(async (req, res) => {
         return res.status(400).json({ message: 'User Id is required fields.' })
     }
 
-    const recipe = await Recipe.find({ userId: userId })
-
-    if (!recipe || recipe.length === 0) {
-        return res.status(409).json({ message: 'No recipe!' })
-    }
-    else {
-        return res.status(200).json({ recipe })
-    }
+    const recipe = await actionGetRecipeByUser(userId)
+    return res.json(recipe)
 })
 
 /**Deletes a recipe by user ID.

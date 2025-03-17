@@ -41,7 +41,26 @@ const upload = multer({
     fileFilter: fileFilter,
 })
 
-// Routes
+/**
+ * @swagger
+ * tags:
+ *   name: Recipe
+ *   description: API for managing recipes
+ */
+
+/**
+ * @swagger
+ * /recipe:
+ *   get:
+ *     summary: Get all recipes
+ *     description: Retrieve a list of all recipes.
+ *     tags: [Recipe]
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved recipes.
+ *       400:
+ *         description: Bad request
+ */
 router.route('/')
     .get(getAllRecipe)
     .post(upload.single("image"), createNewRecipe)
@@ -52,11 +71,48 @@ router.route('/')
 router.post('/rate', verifyJwt, rateOrCommentRecipe)
 router.post('/comment', verifyJwt, rateOrCommentRecipe)
 
+/**
+ * @swagger
+ * /recipe/filter:
+ *  get:
+ *      summary: Filter specific recipes
+ *      description: Filter a recipe based on specific rate / preparation time
+ *      tags: [Recipe]
+ *      responses:
+ *          200: 
+ *              description:filtered recipes
+ *          400:
+ *              desription: No recipes found 
+ *      
+ */
 router.get('/filter', getRecipesWithSpecificRate)
 router.post('/search', getRecipeByIngredient)
 router.post('/update', updateRecipe)
 
-router.get('/:id', getRecipeById)
+/**
+ * @swagger
+ * /recipe/{id}:
+ *  get:
+ *      summary: Retrieve recipe details
+ *      description: Fetches detailed information about a recipe using its ID.
+ *      tags: [Recipe]
+ *      parameters:
+ *        - in: path
+ *          name: id
+ *          schema:
+ *            type: string 
+ *          required: true
+ *          description: Recipe ID (MongoDB ObjectId or Numeric)
+ *      responses:
+ *        200:
+ *          description: Successfully retrieved the recipe.
+ *        400:
+ *          description: Invalid recipe ID or not found.
+ */
+router.get('/:id', getRecipeById);
+
+
+
 router.post('/:userId', getRecipeByUser)
 
 export default router

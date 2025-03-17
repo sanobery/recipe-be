@@ -1,33 +1,17 @@
-import { format } from 'date-fns'
-import { v4 as uuid } from 'uuid'
-import { existsSync } from 'fs'
-import { promises as fsPromises } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
+import winston from 'winston'
 
-// ✅ Fix for __dirname in ES Modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const logger = winston.createLogger({
+    level: 'info', // Default logging level
+    format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.printf(({ timestamp, level, message }) => {
+            return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+        })
+    ),
+    transports: [
+        new winston.transports.File({ filename: 'logs/errors.log', level: 'error' }), // Error logs
+        new winston.transports.File({ filename: 'logs/combined.log' }) // All logs
+    ]
+})
 
-const logEvents = async (message, logFileName) => {
-    const dateTime = `${format(new Date(), 'yyyyMMdd\tHH:mm:ss')}`
-    const logItem = `${dateTime} \t${uuid()} \t${message}\n`
-
-    try {
-        const logDir = join(__dirname, '..', 'logs')
-
-        if (!existsSync(logDir)) {
-            await fsPromises.mkdir(logDir, { recursive: true })
-        }
-        await fsPromises.appendFile(join(logDir, logFileName), logItem)
-    } catch (err) {
-        console.error(err)
-    }
-}
-
-const logger = (req, res, next) => {
-    logEvents(`${req.method}\t${req.url}\t${req.headers.origin}`, 'reqLog.log')
-    next()
-}
-
-export { logEvents, logger }
+export default logger
