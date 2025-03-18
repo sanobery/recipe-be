@@ -1,7 +1,13 @@
 import { Router } from 'express'
 const router = Router()
-import { login, logout, refresh, getCurrentUser, createNewUser, updateUser } from '../controllers/authController.js'
-import verifyJwt from '../middleware/verifyJwt.js';
+import {
+    login,
+    logout,
+    refresh,
+    getCurrentUser,
+    createNewUser,
+    updateUser,
+} from '../controllers/authController.js'
 
 /**
  * @swagger
@@ -30,7 +36,7 @@ import verifyJwt from '../middleware/verifyJwt.js';
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "user@example.com"
+ *                 example: "user@gmail.com"
  *                 description: User's email address
  *               password:
  *                 type: string
@@ -62,11 +68,9 @@ import verifyJwt from '../middleware/verifyJwt.js';
  *                   type: string
  *                   example: "Invalid email or password"
  */
-router.route('/').post(login);
+router.route('/').post(login)
 
-
-router.route('/refresh')
-    .post(refresh)
+router.route('/refresh').post(refresh)
 
 /**
  * @swagger
@@ -79,7 +83,7 @@ router.route('/refresh')
  *        - in: cookie
  *          name: token
  *          schema:
- *            type: string 
+ *            type: string
  *          required: true
  *          description: Authentication token stored in cookies
  *      responses:
@@ -88,16 +92,49 @@ router.route('/refresh')
  *        400:
  *          description: Invalid token id.
  */
-router.route('/profile')
-    .get(getCurrentUser)
+router.route('/profile').get(getCurrentUser)
 
-router.route('/updateUser')
-    .post(updateUser)
+router.route('/updateUser').post(updateUser)
 
-router.route('/signup')
-    .post(createNewUser)
+/**
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: Create a new user
+ *     description: Registers a new user. The password is encrypted on the client-side and then decrypted & hashed on the server before storing.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 example: "exampleUser"
+ *                 description: User's name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@gmail.com"
+ *                 description: User's email address
+ *               password:
+ *                 type: string
+ *                 example: "U2FsdGVkX1+e8kW1Q0...=="  # Encrypted format
+ *                 description: Encrypted password using crypto-js (AES)
+ *     responses:
+ *       200:
+ *         description: Sign-up successful! Redirecting to login page in 2 seconds...
+ *       400:
+ *         description: Invalid request or missing fields.
+ */
 
-router.route('/logout')
-    .post(logout)
+router.route('/signup').post(createNewUser)
+
+router.route('/logout').post(logout)
 
 export default router

@@ -8,13 +8,9 @@ redisClient.on('error', (error) => {
 })
 
 // Connect to Redis when the application starts
-redisClient.connect()
-    .then(
-        () =>
-            logger.info('Connected To Redis', error)
-    )
-    .catch(
-        (error) => logger.error('Redis Error:', error)
-    )
+redisClient
+    .connect()
+    .then(() => logger.info('Connected To Redis')) //  No need for `error` here
+    .catch((error) => logger.error('Redis Connection Error:', error)) //  Correct error handling
 
 export default redisClient

@@ -1,4 +1,3 @@
-
 /**
  * Controller class containing all the authentication functionalities.
  *
@@ -10,16 +9,16 @@ import process from 'process'
 dotenv.config()
 import asyncHandler from 'express-async-handler'
 import { compare, hash } from 'bcrypt'
-import CryptoJS from "crypto-js"
+import CryptoJS from 'crypto-js'
 const { AES, enc } = CryptoJS
 import jwt from 'jsonwebtoken'
 const { sign, verify } = jwt
 import User from '../models/users.js'
-import { checkEmail } from '../repositories/authDb.js'
+import { actionCreateOrUpdateUser, checkUserEmail, checkUserById } from '../repositories/authDb.js'
 import { responseHandler } from '../utils/responseHandler.js'
+import { RESPONSE_MESSAGES } from '../utils/constants.js'
 
 const SECRET_KEY = process.env.SECRET_KEY
-
 
 /**
  * Handles user authentication by verifying email and password.
@@ -33,34 +32,34 @@ const SECRET_KEY = process.env.SECRET_KEY
 const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body
     if (!email || !password) {
-        return res.status(400).json({ message: 'All are required fields.' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
-    const user = await checkEmail(email)
-    if (!user)
-        return responseHandler(res, 401, "Invalid user! Please Sign-Up")
+    const user = await checkUserEmail(email)
+    if (!user) return responseHandler(res, 401, RESPONSE_MESSAGES.INVALID_USER)
 
     const decryptedPassword = AES.decrypt(password, SECRET_KEY).toString(enc.Utf8)
 
     const isMatch = await compare(decryptedPassword, user.password)
 
-    if (!isMatch)
-        return responseHandler(res, 401, "Invalid email or password")
+    if (!isMatch) return responseHandler(res, 401, RESPONSE_MESSAGES.INVALID_CREDENTIALS)
 
-    const accessToken = sign({
-        "userinfo": {
-            "userId": user._id
+    const accessToken = sign(
+        {
+            userinfo: {
+                userId: user._id,
+            },
         },
-    },
         process.env.ACCESS_SECRET_KEY,
         { expiresIn: '6s' }
     )
 
-    const refreshToken = sign({
-        "userinfo": {
-            "userId": user._id
+    const refreshToken = sign(
+        {
+            userinfo: {
+                userId: user._id,
+            },
         },
-    },
         process.env.REFRESH_SECRET_KEY,
         { expiresIn: '1d' }
     )
@@ -69,12 +68,11 @@ const login = asyncHandler(async (req, res) => {
         httpOnly: true,
         // secure: true,
         sameSite: 'Lax',
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000,
     })
 
-    return responseHandler(res, 200, "Login successful! Closing in 1 seconds...", { accessToken })
+    return responseHandler(res, 200, RESPONSE_MESSAGES.LOGIN_SUCCESS, { accessToken })
 })
-
 
 /**
  * Handles token refresh to provide a new access token.
@@ -87,24 +85,24 @@ const login = asyncHandler(async (req, res) => {
 const refresh = (req, res) => {
     const cookies = req.cookies
 
-    if (!cookies?.jwt)
-        return responseHandler(res, 401, 'Unauthorized user')
+    if (!cookies?.jwt) return responseHandler(res, 401, RESPONSE_MESSAGES.UNAUTHORIZED)
 
     const refreshToken = cookies.jwt
 
     verify(refreshToken, process.env.REFRESH_SECRET_KEY, (err, decoded) => {
         if (err) {
-            return responseHandler(res, 401, 'Forbidden: Invalid token')
+            return responseHandler(res, 401, RESPONSE_MESSAGES.INVALID_TOKEN)
         }
 
         const user = { userinfo: { userId: decoded?.userinfo?.user?._id } }
 
         const newAccessToken = sign(user, process.env.ACCESS_SECRET_KEY, { expiresIn: '10m' })
 
-        return responseHandler(res, 200, 'Token Refreshed', { accessToken: newAccessToken })
+        return responseHandler(res, 200, RESPONSE_MESSAGES.TOKEN_REFRESHED, {
+            accessToken: newAccessToken,
+        })
     })
 }
-
 
 /**
  * Retrieves the current authenticated user based on the refresh token.
@@ -118,30 +116,28 @@ const refresh = (req, res) => {
 const getCurrentUser = (req, res) => {
     const cookies = req.cookies
 
-    if (!cookies?.jwt) return res.status(401).json({ message: 'Unauthorized user' })
+    if (!cookies?.jwt) return responseHandler(res, 401, RESPONSE_MESSAGES.UNAUTHORIZED)
 
     const refreshToken = cookies.jwt
     verify(refreshToken, process.env.REFRESH_SECRET_KEY, async (err, decoded) => {
         if (err) {
-            return res.status(403).json({ message: 'Forbidden: Invalid token' })
+            return responseHandler(res, 403, RESPONSE_MESSAGES.INVALID_TOKEN)
         }
 
         const userId = decoded.userinfo.userId
 
         if (!userId) {
-            return res.status(400).json({ message: 'UserId is required Field.' })
+            return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
         }
 
-        const userExist = await User.findById({ _id: userId }).lean()
-
+        const userExist = await checkUserById(userId)
         if (!userExist) {
-            return res.status(400).json({ message: 'Invalid User!' })
+            return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
         }
 
-        return res.status(200).json({ userExist })
+        return responseHandler(res, 200, RESPONSE_MESSAGES.AUTH_RECIPE_DETAIL, { userExist })
     })
 }
-
 
 /**
  * Logs out the user by clearing the authentication cookie.
@@ -152,14 +148,13 @@ const getCurrentUser = (req, res) => {
  */
 const logout = (req, res) => {
     const cookies = req.cookies
-    if (!cookies?.jwt) return res.status(204).json({ message: 'Error' })
+    if (!cookies?.jwt) return responseHandler(res, 204, RESPONSE_MESSAGES.SERVER_ERROR)
 
     res.clearCookie('jwt', {
         httpOnly: true,
         // secure: true,
         sameSite: 'lax',
     }).json({ message: 'Logout successfully' })
-
 }
 
 /**
@@ -175,50 +170,46 @@ const createNewUser = asyncHandler(async (req, res) => {
     const errors = []
 
     if (!username || username.length < 4) {
-        errors.push("Username must be at least 4 characters long.")
+        errors.push('Username must be at least 4 characters long.')
     }
     const decryptedPassword = AES.decrypt(password, SECRET_KEY).toString(enc.Utf8)
 
     if (!password) {
-        errors.push("Password is required.")
+        errors.push('Password is required.')
     } else {
-
         if (decryptedPassword.length < 8 || decryptedPassword.length > 16) {
-            errors.push("Password must be between 8 to 16 characters long.")
+            errors.push('Password must be between 8 to 16 characters long.')
         }
         if (!/[A-Z]/.test(decryptedPassword)) {
-            errors.push("Password must include at least one uppercase letter.")
+            errors.push('Password must include at least one uppercase letter.')
         }
         if (!/[a-z]/.test(decryptedPassword)) {
-            errors.push("Password must include at least one lowercase letter.")
+            errors.push('Password must include at least one lowercase letter.')
         }
         if (!/\d/.test(decryptedPassword)) {
-            errors.push("Password must include at least one number.")
+            errors.push('Password must include at least one number.')
         }
         if (!/[@$!%*?&]/.test(decryptedPassword)) {
-            errors.push("Password must include at least one special character (@$!%*?&).")
+            errors.push('Password must include at least one special character (@$!%*?&).')
         }
     }
 
     if (errors.length > 0) {
-        return res.status(400).json({ message: errors.join(" ") })
+        return responseHandler(res, 400, { message: errors.join(' ') })
     }
 
-    const userExist = await User.findOne({ email: email }).lean()
+    const userExist = await checkUserEmail(email)
     if (userExist) {
-        return res.status(400).json({ message: "User already exists!" })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.USER_ALREADY_EXIST)
     }
 
     const hashPassword = await hash(decryptedPassword, 10)
-    const userCreated = await User.create({ username, email, password: hashPassword })
+    const userCreated = await actionCreateOrUpdateUser(null, username, email, hashPassword)
 
     if (userCreated) {
-        return res.status(200).json({
-            message: "Sign-up successful! Redirecting to login page in 2 seconds...",
-            user: userCreated
-        })
+        return responseHandler(res, 200, RESPONSE_MESSAGES.SIGNUP_SUCCESS, { user: userCreated })
     } else {
-        return res.status(409).json({ message: "Invalid user details!" })
+        return responseHandler(res, 409, RESPONSE_MESSAGES.BAD_REQUEST)
     }
 })
 
@@ -235,36 +226,32 @@ const updateUser = asyncHandler(async (req, res) => {
     const { userId, username, email, password } = req.body
 
     if (!userId || !username || !email || !password) {
-        return res.status(400).json({ message: 'All fields are required.' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
-    const userExist = await User.findById(userId).lean()
+    const userExist = await checkUserById(userId)
 
     if (!userExist) {
-        return res.status(400).json({ message: 'Invalid User!' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER)
     }
 
-    const duplicate = await User.findOne({ email }).lean()
+    const duplicate = await checkUserEmail(email)
     if (duplicate && duplicate._id.toString() !== userId) {
-        return res.status(409).json({ message: 'Duplicate email!' })
+        return responseHandler(res, 409, RESPONSE_MESSAGES.USER_ALREADY_EXIST)
     }
 
     const decryptedPassword = AES.decrypt(password, SECRET_KEY).toString(enc.Utf8)
 
     const hashedPassword = await hash(decryptedPassword, 10)
-
-    const userUpdated = await User.findByIdAndUpdate(
-        userId,
-        { username, email, password: hashedPassword },
-        { new: true }
-    )
+    const userUpdated = await actionCreateOrUpdateUser(userId, username, email, hashedPassword)
 
     if (userUpdated) {
-        return res.status(200).json({ message: 'User updated successfully!', userId: userUpdated._id.toString() })
+        return responseHandler(res, 200, RESPONSE_MESSAGES.SUCCESSFUL_UPDATED, {
+            userId: userUpdated._id.toString(),
+        })
     } else {
-        return res.status(500).json({ message: 'Failed to update user!' })
+        return responseHandler(res, 500, RESPONSE_MESSAGES.BAD_REQUEST)
     }
 })
-
 
 export { login, logout, refresh, getCurrentUser, createNewUser, updateUser }

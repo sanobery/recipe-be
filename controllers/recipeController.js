@@ -7,6 +7,7 @@ import { actionGetAllRecipe, actionGetRecipeByUser } from '../repositories/recip
 import logger from '../middleware/logger.js'
 import redisClient from '../config/redisCache.js'
 import { responseHandler } from '../utils/responseHandler.js'
+import { RESPONSE_MESSAGES } from '../utils/constants.js'
 
 /**Retrieves all recipes with pagination, sorted by creation date.
  * Also calculates the average rating for each recipe.
@@ -16,8 +17,8 @@ const getAllRecipe = asyncHandler(async (req, res) => {
     const limitNumber = parseInt(req.query.limit) || 4
 
     if (isNaN(pageNumber) || isNaN(limitNumber)) {
-        logger.warn("Invalid page or limit parameter")
-        return responseHandler(res, 400, "Invalid page or limit parameter")
+        logger.warn(RESPONSE_MESSAGES.INVALID_PARAMETER)
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
     const cacheKey = `recipes:page:${pageNumber}:limit:${limitNumber}`
@@ -26,22 +27,22 @@ const getAllRecipe = asyncHandler(async (req, res) => {
     const cachedData = await redisClient.get(cacheKey)
     if (cachedData) {
         logger.info(`Cache hit for ${cacheKey}`)
-        return responseHandler(res, 200, "Successfully retrieved recipes", JSON.parse(cachedData))
+        return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, JSON.parse(cachedData))
     }
 
     // If no cache, fetch from database
     const getRecipeDetails = await actionGetAllRecipe(pageNumber, limitNumber)
 
     if (!getRecipeDetails || !getRecipeDetails?.recipes?.length) {
-        logger.warn("No recipes found")
-        return responseHandler(res, 404, "No recipes found")
+        logger.error(RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
+        return responseHandler(res, 404, RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
     }
 
     // Store the fetched data in Redis with expiration (e.g., 10 minutes)
-    await redisClient.set(cacheKey, JSON.stringify(getRecipeDetails), "EX", 600)
+    await redisClient.set(cacheKey, JSON.stringify(getRecipeDetails), 'EX', 600)
 
-    logger.info(`Successfully retrieved ${getRecipeDetails.recipes.length} recipes`)
-    return responseHandler(res, 200, getRecipeDetails)
+    logger.info(RESPONSE_MESSAGES.RECIPE_FOUND + `${getRecipeDetails.recipes.length} recipes`)
+    return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, getRecipeDetails)
 })
 
 /**Creates a new recipe entry with the given details.
@@ -54,15 +55,15 @@ const createNewRecipe = asyncHandler(async (req, res) => {
     const preparationTime = JSON.parse(req.body?.preparationTime)
     const imageFile = req.file
     const imageName = imageFile ? imageFile.filename : null
-    const cleanUserId = userId.replace(/^"|"$/g, "").trim()
+    const cleanUserId = userId.replace(/^"|"$/g, '').trim()
 
     if (!userId || !title || !ingredients || !steps || !imageName) {
-        return res.status(400).json({ message: "All fields are required." })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
-    const user = await User.findById(cleanUserId)
+    const user = await checkUserById(cleanUserId)
     if (!user) {
-        return res.status(400).json({ message: "Invalid user ID" })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
     }
 
     const newRecipe = new Recipe({
@@ -71,21 +72,20 @@ const createNewRecipe = asyncHandler(async (req, res) => {
         ingredients,
         steps,
         image: imageName,
-        preparationTime
+        preparationTime,
     })
 
     await newRecipe.save()
 
     const totalRecipes = await Recipe.countDocuments()
 
-    return res.status(200).json({
-        message: "Recipe created successfully",
+    return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_CREATED, {
         total: totalRecipes,
         recipe: {
             ...newRecipe.toObject(),
             userId: { _id: user._id, username: user.username },
-            averageRating: 0
-        }
+            averageRating: 0,
+        },
     })
 })
 
@@ -96,12 +96,12 @@ const updateRecipe = asyncHandler(async (req, res) => {
     const { userId, recipeId, title, ingredients, steps, preparationTime } = req.body
 
     if (!userId || !recipeId) {
-        return res.status(400).json({ message: "User ID and Recipe ID are required." })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
     const user = await User.findById(userId)
     if (!user) {
-        return res.status(400).json({ message: "Invalid user ID" })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
     }
 
     let updateFields = {}
@@ -121,10 +121,10 @@ const updateRecipe = asyncHandler(async (req, res) => {
     )
 
     if (!updatedRecipe) {
-        return res.status(404).json({ message: "Recipe not found." })
+        return responseHandler(res, 404, RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
     }
 
-    res.status(200).json({ message: "Recipe updated successfully", recipe: updatedRecipe })
+    return responseHandler(res, 200, 'Recipe updated successfully', { recipe: updatedRecipe })
 })
 
 /**Fetches a single recipe by its ID.
@@ -134,28 +134,26 @@ const getRecipeById = asyncHandler(async (req, res) => {
     const { id } = req.params
 
     if (!id) {
-        return res.status(400).json({ message: 'RecipeId is required.' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
-    const recipe = await Recipe.findById(id).populate("userId", "username").lean()
+    const recipe = await Recipe.findById(id).populate('userId', 'username').lean()
 
     if (!recipe) {
-        return res.status(404).json({ message: 'No recipe found!' })
+        return responseHandler(res, 404, RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
     }
-    const comments = await Comment.find({ recipeId: (id) })
-        .populate("userId", "username").lean()
+    const comments = await Comment.find({ recipeId: id }).populate('userId', 'username').lean()
 
-    const ratings = await Rate.find({ recipeId: id }).populate("userId", "username").lean()
+    const ratings = await Rate.find({ recipeId: id }).populate('userId', 'username').lean()
 
-    const averageRating = ratings.length > 0
-        ? ratings.reduce((sum, r) => sum + r.rate, 0) / ratings.length
-        : 0
+    const averageRating =
+        ratings.length > 0 ? ratings.reduce((sum, r) => sum + r.rate, 0) / ratings.length : 0
 
-    return res.status(200).json({
+    return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, {
         ...recipe,
         averageRating: Math.ceil(averageRating),
         ratings,
-        comments
+        comments,
     })
 })
 
@@ -165,11 +163,11 @@ const getRecipeById = asyncHandler(async (req, res) => {
 const getRecipeByUser = asyncHandler(async (req, res) => {
     const { userId } = req.body
     if (!userId) {
-        return res.status(400).json({ message: 'User Id is required fields.' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
     }
 
     const recipe = await actionGetRecipeByUser(userId)
-    return res.json(recipe)
+    return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, recipe)
 })
 
 /**Deletes a recipe by user ID.
@@ -179,17 +177,19 @@ const deleteRecipe = asyncHandler(async (req, res) => {
     const { userId } = req.body
 
     if (!userId) {
+        return responseHandler(res)
         return res.status(400).json({ message: 'RecipeId is required fields.' })
     }
 
-
     const user = await Recipe.findOne({ userId }).lean()
     if (!user) {
+        return responseHandler(res)
         return res.status(400).json({ message: 'Recipe not Found' })
     }
     const deletedRecipe = await Recipe.deleteOne()
 
     const reply = `Recipename ${deletedRecipe.username} deleted`
+    return responseHandler(res)
     return res.status(200).json({ message: reply })
 })
 
@@ -200,42 +200,54 @@ const getRecipeByIngredient = asyncHandler(async (req, res) => {
     const { ingredient } = req.body
 
     const totalRecipes = await Recipe.countDocuments({
-        ingredients: { $regex: new RegExp(ingredient, "i") }
+        ingredients: { $regex: new RegExp(ingredient, 'i') },
     })
     if (!ingredient) {
-        return res.status(400).json({ message: 'Search Bar is empty.' })
+        return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
-    const recipes = await Recipe.find({ ingredients: { $regex: new RegExp(ingredient, "i") } }).populate("userId", "username").lean()
+    const recipes = await Recipe.find({ ingredients: { $regex: new RegExp(ingredient, 'i') } })
+        .populate('userId', 'username')
+        .lean()
 
-    const recipeIds = recipes.map(recipe => recipe._id)
+    const recipeIds = recipes.map((recipe) => recipe._id)
 
     const ratingsData = await Rate.aggregate([
         { $match: { recipeId: { $in: recipeIds } } },
         {
             $group: {
-                _id: "$recipeId",
-                averageRating: { $avg: "$rate" }
-            }
-        }
+                _id: '$recipeId',
+                averageRating: { $avg: '$rate' },
+            },
+        },
     ])
 
     const ratingsMap = {}
-    ratingsData.forEach(rating => {
+    ratingsData.forEach((rating) => {
         ratingsMap[rating._id.toString()] = rating.averageRating.toFixed(1)
     })
 
-    const formattedRecipes = recipes.map(recipe => ({
+    const formattedRecipes = recipes.map((recipe) => ({
         ...recipe,
         userId: { _id: recipe.userId._id, username: recipe.userId.username },
-        averageRating: parseFloat(ratingsMap[recipe._id.toString()] || 0)
+        averageRating: parseFloat(ratingsMap[recipe._id.toString()] || 0),
     }))
 
     if (!recipes || recipes.length === 0) {
-        return res.status(409).json({ message: 'No recipe!' })
-    }
-    else {
-        return res.status(200).json({ recipes: formattedRecipes, total: totalRecipes })
+        return responseHandler(res, 409, RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
+    } else {
+        return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, {
+            recipes: formattedRecipes,
+            total: totalRecipes,
+        })
     }
 })
 
-export { getAllRecipe, createNewRecipe, updateRecipe, deleteRecipe, getRecipeById, getRecipeByUser, getRecipeByIngredient }
+export {
+    getAllRecipe,
+    createNewRecipe,
+    updateRecipe,
+    deleteRecipe,
+    getRecipeById,
+    getRecipeByUser,
+    getRecipeByIngredient,
+}

@@ -17,7 +17,6 @@ const verifyJwt = (req, res, next) => {
         // Extract user info from decoded token
         req.userId = decoded.userId
         next()
-
     })
 }
 

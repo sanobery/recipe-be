@@ -1,17 +1,28 @@
 import { Router } from 'express'
 const router = Router()
-import { getAllRecipe, createNewRecipe, updateRecipe, deleteRecipe, getRecipeById, getRecipeByUser, getRecipeByIngredient } from '../controllers/recipeController.js'
-import multer, { diskStorage } from "multer"
+import {
+    getAllRecipe,
+    createNewRecipe,
+    updateRecipe,
+    deleteRecipe,
+    getRecipeById,
+    getRecipeByUser,
+    getRecipeByIngredient,
+} from '../controllers/recipeController.js'
+import multer, { diskStorage } from 'multer'
 import { fileURLToPath } from 'url'
-import { dirname, join } from "path"
-import { existsSync, mkdirSync } from "fs"
-import { rateOrCommentRecipe, getRecipesWithSpecificRate } from '../controllers/rateCommentController.js'
+import { dirname, join } from 'path'
+import { existsSync, mkdirSync } from 'fs'
+import {
+    rateOrCommentRecipe,
+    getRecipesWithSpecificRate,
+} from '../controllers/rateCommentController.js'
 import verifyJwt from '../middleware/verifyJwt.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const uploadDir = join(__dirname, "../uploads")
+const uploadDir = join(__dirname, '../uploads')
 if (!existsSync(uploadDir)) {
     mkdirSync(uploadDir, { recursive: true })
 }
@@ -61,10 +72,11 @@ const upload = multer({
  *       400:
  *         description: Bad request
  */
-router.route('/')
+router
+    .route('/')
     .get(getAllRecipe)
-    .post(upload.single("image"), createNewRecipe)
-    .patch(upload.single("image"), updateRecipe)
+    .post(upload.single('image'), createNewRecipe)
+    .patch(upload.single('image'), updateRecipe)
     .delete(deleteRecipe)
 
 // Apply `verifyJwt` only for specific routes
@@ -79,11 +91,11 @@ router.post('/comment', verifyJwt, rateOrCommentRecipe)
  *      description: Filter a recipe based on specific rate / preparation time
  *      tags: [Recipe]
  *      responses:
- *          200: 
+ *          200:
  *              description:filtered recipes
  *          400:
- *              desription: No recipes found 
- *      
+ *              desription: No recipes found
+ *
  */
 router.get('/filter', getRecipesWithSpecificRate)
 router.post('/search', getRecipeByIngredient)
@@ -100,7 +112,7 @@ router.post('/update', updateRecipe)
  *        - in: path
  *          name: id
  *          schema:
- *            type: string 
+ *            type: string
  *          required: true
  *          description: Recipe ID (MongoDB ObjectId or Numeric)
  *      responses:
@@ -109,9 +121,7 @@ router.post('/update', updateRecipe)
  *        400:
  *          description: Invalid recipe ID or not found.
  */
-router.get('/:id', getRecipeById);
-
-
+router.get('/:id', getRecipeById)
 
 router.post('/:userId', getRecipeByUser)
 

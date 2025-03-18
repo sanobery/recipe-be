@@ -15,7 +15,7 @@ import recipeRoute from './routes/recipeRoute.js'
 const app = express()
 const PORT = process.env.PORT
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -36,7 +36,7 @@ app.use('/auth', authRoute)
  *      summary: All details of recipe route
  *      description: All details of recipe route
  *      responses:
- *               200: 
+ *               200:
  *                  description: request successfull
  *               400:
  *                  description: Error
@@ -46,7 +46,6 @@ app.use('/recipe', recipeRoute)
 app.all('*', (req, resp) => {
     resp.sendFile(join(__dirname, 'views', '404.html'))
 })
-
 
 db().then(() => {
     app.listen(PORT, () => {

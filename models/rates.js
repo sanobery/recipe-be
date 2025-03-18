@@ -4,18 +4,18 @@ const rateSchema = new Schema({
     recipeId: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: "recipe"
+        ref: 'recipe',
     },
     userId: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: "users"
+        ref: 'users',
     },
     rate: {
         type: Number,
         required: true,
         min: 1,
-        max: 5
+        max: 5,
     },
     createdAt: {
         type: Date,

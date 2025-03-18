@@ -8,12 +8,10 @@ const URI = process.env.MONGODB_URI
 const db = async () => {
     try {
         await connect(URI)
-
-    }
-    // eslint-disable-next-line no-unused-vars
-    catch (error) {
+    } catch (error) {
+        // eslint-disable-next-line no-unused-vars
         process.exit(1)
     }
 }
 
-export default db 
+export default db

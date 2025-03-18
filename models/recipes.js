@@ -4,27 +4,27 @@ const receipeSchema = new Schema({
     userId: {
         type: Schema.Types.ObjectId,
         required: true,
-        ref: "users"
+        ref: 'users',
     },
     title: {
         type: String,
-        required: true
+        required: true,
     },
     ingredients: {
         type: [String],
-        required: true
+        required: true,
     },
     steps: {
         type: [String],
-        required: true
+        required: true,
     },
     image: {
         type: String,
-        default: ""
+        default: '',
     },
     preparationTime: {
         type: Number,
-        required: true
+        required: true,
     },
     createdAt: {
         type: Date,

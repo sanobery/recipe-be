@@ -3,20 +3,20 @@ import { Schema, model } from 'mongoose'
 const userSchema = new Schema({
     _id: {
         type: Schema.Types.ObjectId,
-        auto: true
+        auto: true,
     },
     username: {
         type: String,
-        required: true
+        required: true,
     },
     email: {
         type: String,
-        required: true
+        required: true,
     },
     password: {
         type: String,
-        required: true
-    }
+        required: true,
+    },
 })
 
 const User = new model('users', userSchema)

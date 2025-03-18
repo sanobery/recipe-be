@@ -5,13 +5,13 @@ const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.printf(({ timestamp, level, message }) => {
-            return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+            return `${timestamp} [${level.toUpperCase()}]: ${message}`
         })
     ),
     transports: [
         new winston.transports.File({ filename: 'logs/errors.log', level: 'error' }), // Error logs
-        new winston.transports.File({ filename: 'logs/combined.log' }) // All logs
-    ]
+        new winston.transports.File({ filename: 'logs/combined.log' }), // All logs
+    ],
 })
 
 export default logger

@@ -9,7 +9,7 @@ const corsOrigins = {
         }
     },
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
 }
 
 export default corsOrigins

@@ -13,33 +13,35 @@ const rateOrCommentRecipe = asyncHandler(async (req, res) => {
     const { recipeId, userId, rate, comment } = req.body
 
     if (!recipeId || !userId || (!rate && !comment)) {
-        return res.status(400).json({ message: "Recipe ID, User ID, and either Rate or Comment are required." })
+        return res
+            .status(400)
+            .json({ message: 'Recipe ID, User ID, and either Rate or Comment are required.' })
     }
 
     if (rate !== undefined && (rate < 1 || rate > 5)) {
-        return res.status(400).json({ message: "Rate must be between 1 and 5." })
+        return res.status(400).json({ message: 'Rate must be between 1 and 5.' })
     }
 
     const user = await User.findById(userId)
     if (!user) {
-        return res.status(400).json({ error: "Invalid user ID" })
+        return res.status(400).json({ error: 'Invalid user ID' })
     }
 
     const recipeExists = await Recipe.findById(recipeId)
     if (!recipeExists) {
-        return res.status(404).json({ message: "Recipe not found." })
+        return res.status(404).json({ message: 'Recipe not found.' })
     }
 
-    let responseMessage = ""
+    let responseMessage = ''
 
     if (rate !== undefined) {
         if (recipeExists.userId.toString() === userId) {
-            return res.status(404).json({ message: "You cannot rate your own recipe." })
+            return res.status(404).json({ message: 'You cannot rate your own recipe.' })
         }
 
         const existingRating = await Rate.findOne({ recipeId, userId })
         if (existingRating) {
-            return res.status(400).json({ message: "User has already rated this recipe." })
+            return res.status(400).json({ message: 'User has already rated this recipe.' })
         }
 
         const newRating = new Rate({
@@ -49,7 +51,7 @@ const rateOrCommentRecipe = asyncHandler(async (req, res) => {
         })
 
         await newRating.save()
-        responseMessage += "Rating added successfully. "
+        responseMessage += 'Rating added successfully. '
     }
 
     if (comment !== undefined) {
@@ -60,7 +62,7 @@ const rateOrCommentRecipe = asyncHandler(async (req, res) => {
         })
 
         await newComment.save()
-        responseMessage += "Comment added successfully."
+        responseMessage += 'Comment added successfully.'
     }
 
     return res.status(200).json({ message: responseMessage })
@@ -93,45 +95,45 @@ const getRecipesWithSpecificRate = asyncHandler(async (req, res) => {
  */
 const getRecipesByRate = async (rating) => {
     if (!rating) {
-        return { status: 400, message: "Query parameter is required." }
+        return { status: 400, message: 'Query parameter is required.' }
     }
 
     const specificRate = Number(rating)
     if (isNaN(specificRate) || specificRate < 1 || specificRate > 5) {
-        return { status: 400, message: "Invalid rating. It must be between 1 and 5." }
+        return { status: 400, message: 'Invalid rating. It must be between 1 and 5.' }
     }
 
     const avgRatings = await Rate.aggregate([
         {
             $group: {
-                _id: "$recipeId",
-                avgRating: { $avg: "$rate" }
-            }
+                _id: '$recipeId',
+                avgRating: { $avg: '$rate' },
+            },
         },
         {
-            $addFields: { avgRatingCeil: { $ceil: "$avgRating" } }
+            $addFields: { avgRatingCeil: { $ceil: '$avgRating' } },
         },
         {
-            $match: { avgRatingCeil: specificRate }
-        }
+            $match: { avgRatingCeil: specificRate },
+        },
     ])
 
     if (avgRatings.length === 0) {
-        return { status: 404, message: "No recipes found with the given average rating." }
+        return { status: 404, message: 'No recipes found with the given average rating.' }
     }
 
-    const recipeIds = avgRatings.map(r => r._id)
+    const recipeIds = avgRatings.map((r) => r._id)
 
     const recipes = await Recipe.find({ _id: { $in: recipeIds } })
         .populate('userId', 'username')
         .lean()
 
-    const result = recipes.map(recipe => {
-        const ratingData = avgRatings.find(r => r._id.toString() === recipe._id.toString())
+    const result = recipes.map((recipe) => {
+        const ratingData = avgRatings.find((r) => r._id.toString() === recipe._id.toString())
         return {
             ...recipe,
             userId: { _id: recipe.userId._id, username: recipe.userId.username },
-            averageRating: ratingData ? ratingData.avgRating : 0
+            averageRating: ratingData ? ratingData.avgRating : 0,
         }
     })
 
@@ -144,38 +146,39 @@ const getRecipesByRate = async (rating) => {
  * - Returns recipes within the specified time range.
  */
 const getRecipesByPreparationTime = async (preparationTime) => {
-
     if (!preparationTime) {
-        return { status: 400, message: "Query parameter is required." }
+        return { status: 400, message: 'Query parameter is required.' }
     }
 
-    const [minTime, maxTime] = preparationTime.split("-").map(Number)
+    const [minTime, maxTime] = preparationTime.split('-').map(Number)
 
     if (isNaN(minTime) || isNaN(maxTime)) {
-        return { status: 400, message: "Preparation time should be numeric." }
+        return { status: 400, message: 'Preparation time should be numeric.' }
     }
 
-    const recipes = await Recipe.find({ preparationTime: { $gte: minTime, $lte: maxTime } }).populate('userId', 'username').lean()
+    const recipes = await Recipe.find({ preparationTime: { $gte: minTime, $lte: maxTime } })
+        .populate('userId', 'username')
+        .lean()
 
     const avgRatings = await Rate.aggregate([
         {
             $group: {
-                _id: "$recipeId",
-                avgRating: { $avg: "$rate" }
-            }
-        }
+                _id: '$recipeId',
+                avgRating: { $avg: '$rate' },
+            },
+        },
     ])
 
     if (avgRatings.length === 0) {
-        return { status: 404, message: "No recipes found with the given average rating." }
+        return { status: 404, message: 'No recipes found with the given average rating.' }
     }
 
-    const result = recipes.map(recipe => {
-        const ratingData = avgRatings.find(r => r._id.toString() === recipe._id.toString())
+    const result = recipes.map((recipe) => {
+        const ratingData = avgRatings.find((r) => r._id.toString() === recipe._id.toString())
         return {
             ...recipe,
             userId: { _id: recipe.userId._id, username: recipe.userId.username },
-            averageRating: ratingData ? ratingData.avgRating : 0
+            averageRating: ratingData ? ratingData.avgRating : 0,
         }
     })
 

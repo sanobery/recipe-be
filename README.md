@@ -1,0 +1,58 @@
+# README
+
+This is a Node.js-based project that uses MongoDB as the backend database. The project follows an MVC architecture with folders for routes, models, controllers, and repositories.
+
+### What is this repository for?
+
+- Quick summary
+- Version
+
+### Installation & Setup
+
+Prerequisites
+
+Ensure you have the following installed:
+
+- Node.js (v18+ recommended)
+- MongoDB (local or cloud instance)
+- npm or yar
+
+### Configure Environment
+
+Create a .env file in the root directory.
+
+### Contribution guidelines
+
+Author: Mindfire Solutions
+
+### Project Structure
+
+- controllers/ # Business logic and request handling
+- models/ # Database models (MongoDB schemas)
+- repositories/ # Data access layer for MongoDB
+- routes/ # Express routes for API endpoints
+- config/ # Configuration files (DB connection, environment variables)
+- middleware/ # Custom middleware (auth, logging, etc.)
+- utils/ # Utility functions
+- server.js # Entry point of the application
+- package.json # Project metadata and dependencies
+- .env.example # Environment variable example file
+- README.md # Project documentation
+
+### Running the Project
+
+To start the development server: npm run dev
+
+### Coding Standards
+
+    folder Naming Convention			: flatcase
+    file Naming Convention			    : camelCasing
+    Function Naming Convention			: camelCasing
+    Variable Naming Convention          : camelCasing
+
+Below coding practices are followed throughout the application:
+###############################################################
+
+1.  Use Constants in place of messages.
+
+2.  For api-documentation, follow /api-docs

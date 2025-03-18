@@ -1,9 +1,29 @@
-import User from "../models/users.js"
+import User from '../models/users.js'
 import asyncHandler from 'express-async-handler'
 
-const checkEmail = asyncHandler(async (email) => {
+const checkUserEmail = asyncHandler(async (email) => {
     const user = await User.findOne({ email })
+
     return user
 })
 
-export { checkEmail }
+const checkUserById = asyncHandler(async (id) => {
+    const userExist = await User.findById({ _id: id }).lean()
+
+    return userExist
+})
+
+const actionCreateOrUpdateUser = asyncHandler(async (userId, username, email, password) => {
+    let user
+    if (userId) {
+        user = await User.findByIdAndUpdate(
+            userId,
+            { username, email, password: hashedPassword },
+            { new: true }
+        )
+    } else user = await User.create({ username, email, password: password })
+
+    return user
+})
+
+export { checkUserEmail, checkUserById, actionCreateOrUpdateUser }
