@@ -4,7 +4,7 @@ import Rate from '../models/rates.js'
 import redisClient from '../config/redisCache.js'
 
 const actionGetAllRecipe = asyncHandler(async (pageNumber, limitNumber) => {
-    const totalRecipes = await Recipe.countDocuments()
+    const totalRecipes = await actionRecipeCount()
 
     const recipes = await Recipe.find()
         .sort({ createdAt: -1 })
@@ -60,4 +60,15 @@ const actionGetRecipeByUser = asyncHandler(async (userId) => {
     }
 })
 
-export { actionGetAllRecipe, actionGetRecipeByUser }
+const actionRecipeCount = asyncHandler(async () => {
+    const totalRecipes = await Recipe.countDocuments()
+    return totalRecipes
+})
+
+const actionCreateNewRecipe = asyncHandler(async (recipeData) => {
+    const newRecipe = new Recipe(recipeData)
+    const savedRecipe = await newRecipe.save()
+    return savedRecipe
+})
+
+export { actionGetAllRecipe, actionGetRecipeByUser, actionRecipeCount, actionCreateNewRecipe }

@@ -4,7 +4,6 @@ import {
     getAllRecipe,
     createNewRecipe,
     updateRecipe,
-    deleteRecipe,
     getRecipeById,
     getRecipeByUser,
     getRecipeByIngredient,
@@ -71,13 +70,89 @@ const upload = multer({
  *         description: Successfully retrieved recipes.
  *       400:
  *         description: Bad request
+ *   post:
+ *     summary: Create a new recipe
+ *     description: Upload an image and add a new recipe.
+ *     tags: [Recipe]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "Chocolate Cake"
+ *               ingredients:
+ *                  type: array
+ *                  items:
+ *                      type: string
+ *                  example:
+ *                       - "Flour"
+ *                       - "Cocoa"
+ *                       - "Sugar"
+ *                  style: form
+ *                  explode: false
+ *               steps:
+ *                 type: string
+ *                 example: '["Mix flour with water", "Add Cocoa", "Ferment it for 10 min"]'
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       201:
+ *         description: Recipe created successfully
+ *       400:
+ *         description: Invalid input
+ *   patch:
+ *     summary: Update an existing recipe
+ *     description: Modify an existing recipe's details.
+ *     tags: [Recipe]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 example: "64a67b1e7d8e456abc123"
+ *               title:
+ *                 type: string
+ *                 example: "Updated Cake"
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Recipe updated successfully
+ *       400:
+ *         description: Invalid request
+ *   delete:
+ *     summary: Delete a recipe
+ *     description: Remove a recipe by ID.
+ *     tags: [Recipe]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Recipe ID to delete
+ *     responses:
+ *       200:
+ *         description: Recipe deleted successfully
+ *       400:
+ *         description: Invalid request
  */
 router
     .route('/')
     .get(getAllRecipe)
     .post(upload.single('image'), createNewRecipe)
     .patch(upload.single('image'), updateRecipe)
-    .delete(deleteRecipe)
+    .delete()
 
 // Apply `verifyJwt` only for specific routes
 router.post('/rate', verifyJwt, rateOrCommentRecipe)

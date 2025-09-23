@@ -3,11 +3,18 @@ import asyncHandler from 'express-async-handler'
 import User from '../models/users.js'
 import Rate from '../models/rates.js'
 import Comment from '../models/comments.js'
-import { actionGetAllRecipe, actionGetRecipeByUser } from '../repositories/recipeDb.js'
+import {
+    actionGetAllRecipe,
+    actionGetRecipeByUser,
+    actionRecipeCount,
+    actionCreateNewRecipe,
+} from '../repositories/recipeRepository.js'
 import logger from '../middleware/logger.js'
 import redisClient from '../config/redisCache.js'
 import { responseHandler } from '../utils/responseHandler.js'
 import { RESPONSE_MESSAGES } from '../utils/constants.js'
+import { checkUserById } from '../repositories/authRepository.js'
+import { updateData } from '../repositories/dbRepository.js'
 
 /**Retrieves all recipes with pagination, sorted by creation date.
  * Also calculates the average rating for each recipe.
@@ -50,6 +57,7 @@ const getAllRecipe = asyncHandler(async (req, res) => {
  */
 const createNewRecipe = asyncHandler(async (req, res) => {
     const { userId, title } = req.body
+    console.log(req.body.ingredients, 55)
     const ingredients = JSON.parse(req.body?.ingredients)
     const steps = JSON.parse(req.body?.steps)
     const preparationTime = JSON.parse(req.body?.preparationTime)
@@ -66,23 +74,23 @@ const createNewRecipe = asyncHandler(async (req, res) => {
         return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
     }
 
-    const newRecipe = new Recipe({
-        userId: cleanUserId,
+    const recipeData = {
+        userId,
         title,
         ingredients,
         steps,
-        image: imageName,
+        image,
         preparationTime,
-    })
+    }
 
-    await newRecipe.save()
+    const savedRecipe = await actionCreateNewRecipe(recipeData)
 
-    const totalRecipes = await Recipe.countDocuments()
+    const totalRecipes = await actionRecipeCount()
 
     return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_CREATED, {
         total: totalRecipes,
         recipe: {
-            ...newRecipe.toObject(),
+            ...savedRecipe.toObject(),
             userId: { _id: user._id, username: user.username },
             averageRating: 0,
         },
@@ -99,7 +107,7 @@ const updateRecipe = asyncHandler(async (req, res) => {
         return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_PARAMETER)
     }
 
-    const user = await User.findById(userId)
+    const user = await checkUserById(userId)
     if (!user) {
         return responseHandler(res, 400, RESPONSE_MESSAGES.INVALID_USER_ID)
     }
@@ -113,12 +121,7 @@ const updateRecipe = asyncHandler(async (req, res) => {
     if (req.file) {
         updateFields.image = req.file.filename
     }
-
-    const updatedRecipe = await Recipe.findByIdAndUpdate(
-        recipeId,
-        { $set: updateFields },
-        { new: true, runValidators: true }
-    )
+    const updatedRecipe = await updateData(Recipe, recipeId, updateFields)
 
     if (!updatedRecipe) {
         return responseHandler(res, 404, RESPONSE_MESSAGES.RECIPE_NOT_FOUND)
@@ -157,7 +160,8 @@ const getRecipeById = asyncHandler(async (req, res) => {
     })
 })
 
-/**Retrieves all recipes created by a specific user.
+/**
+ * Retrieves all recipes created by a specific user.
  * Returns an error message if no recipes are found.
  */
 const getRecipeByUser = asyncHandler(async (req, res) => {
@@ -173,25 +177,25 @@ const getRecipeByUser = asyncHandler(async (req, res) => {
 /**Deletes a recipe by user ID.
  * Ensures the recipe exists before deletion.
  */
-const deleteRecipe = asyncHandler(async (req, res) => {
-    const { userId } = req.body
+// const deleteRecipe = asyncHandler(async (req, res) => {
+//     const { userId } = req.body
 
-    if (!userId) {
-        return responseHandler(res)
-        return res.status(400).json({ message: 'RecipeId is required fields.' })
-    }
+//     if (!userId) {
+//         return responseHandler(res)
+//         return res.status(400).json({ message: 'RecipeId is required fields.' })
+//     }
 
-    const user = await Recipe.findOne({ userId }).lean()
-    if (!user) {
-        return responseHandler(res)
-        return res.status(400).json({ message: 'Recipe not Found' })
-    }
-    const deletedRecipe = await Recipe.deleteOne()
+//     const user = await Recipe.findOne({ userId }).lean()
+//     if (!user) {
+//         return responseHandler(res)
+//         return res.status(400).json({ message: 'Recipe not Found' })
+//     }
+//     const deletedRecipe = await Recipe.deleteOne()
 
-    const reply = `Recipename ${deletedRecipe.username} deleted`
-    return responseHandler(res)
-    return res.status(200).json({ message: reply })
-})
+//     const reply = `Recipename ${deletedRecipe.username} deleted`
+//     return responseHandler(res)
+//     return res.status(200).json({ message: reply })
+// })
 
 /**Searches for recipes containing a specific ingredient.
  * Returns matching recipes along with their ratings.
@@ -246,7 +250,6 @@ export {
     getAllRecipe,
     createNewRecipe,
     updateRecipe,
-    deleteRecipe,
     getRecipeById,
     getRecipeByUser,
     getRecipeByIngredient,

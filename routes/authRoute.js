@@ -94,6 +94,48 @@ router.route('/refresh').post(refresh)
  */
 router.route('/profile').get(getCurrentUser)
 
+/**
+ * @swagger
+ * /auth/updateUser:
+ *   post:
+ *     summary: Update user information.
+ *     description: Update an existing user. The password is encrypted on the client-side and then decrypted & hashed on the server before storing.
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 example: "67c1a0520ace1148c3d5ccd3"
+ *                 description: UserId
+ *               username:
+ *                 type: string
+ *                 example: "exampleUser"
+ *                 description: User's name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@gmail.com"
+ *                 description: User's email address
+ *               password:
+ *                 type: string
+ *                 example: "U2FsdGVkX1+e8kW1Q0...=="  # Encrypted format
+ *                 description: Encrypted password using crypto-js (AES)
+ *     responses:
+ *       200:
+ *         description: User Updated Successfully
+ *       400:
+ *         description: Invalid request or missing fields.
+ */
 router.route('/updateUser').post(updateUser)
 
 /**

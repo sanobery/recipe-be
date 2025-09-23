@@ -13,8 +13,11 @@ import CryptoJS from 'crypto-js'
 const { AES, enc } = CryptoJS
 import jwt from 'jsonwebtoken'
 const { sign, verify } = jwt
-import User from '../models/users.js'
-import { actionCreateOrUpdateUser, checkUserEmail, checkUserById } from '../repositories/authDb.js'
+import {
+    actionCreateOrUpdateUser,
+    checkUserEmail,
+    checkUserById,
+} from '../repositories/authRepository.js'
 import { responseHandler } from '../utils/responseHandler.js'
 import { RESPONSE_MESSAGES } from '../utils/constants.js'
 
