@@ -1,5 +1,8 @@
-// import allowedOrigins from './allowedOrigins.js'
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || []
+import dotenv from 'dotenv'
+dotenv.config()
+import process from 'process'
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',')
 const corsOrigins = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {

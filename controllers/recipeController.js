@@ -56,7 +56,6 @@ const getAllRecipe = asyncHandler(async (req, res) => {
  */
 const createNewRecipe = asyncHandler(async (req, res) => {
     const { userId, title } = req.body
-    console.log(req.body.ingredients, 55)
     const ingredients = JSON.parse(req.body?.ingredients)
     const steps = JSON.parse(req.body?.steps)
     const preparationTime = JSON.parse(req.body?.preparationTime)
