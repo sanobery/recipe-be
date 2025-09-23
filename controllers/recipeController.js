@@ -1,6 +1,5 @@
 import Recipe from '../models/recipes.js'
 import asyncHandler from 'express-async-handler'
-import User from '../models/users.js'
 import Rate from '../models/rates.js'
 import Comment from '../models/comments.js'
 import {
@@ -79,7 +78,7 @@ const createNewRecipe = asyncHandler(async (req, res) => {
         title,
         ingredients,
         steps,
-        image,
+        imageName,
         preparationTime,
     }
 
