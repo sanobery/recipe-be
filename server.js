@@ -1,5 +1,6 @@
 // server.js
 import dotenv from 'dotenv'
+import process from 'process'
 dotenv.config()
 import express from 'express'
 import { fileURLToPath } from 'url'

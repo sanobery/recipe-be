@@ -54,7 +54,7 @@ const login = asyncHandler(async (req, res) => {
             },
         },
         process.env.ACCESS_SECRET_KEY,
-        { expiresIn: '6s' }
+        { expiresIn: '10m' }
     )
 
     const refreshToken = sign(
