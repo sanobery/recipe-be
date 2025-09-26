@@ -172,29 +172,6 @@ const getRecipeByUser = asyncHandler(async (req, res) => {
     return responseHandler(res, 200, RESPONSE_MESSAGES.RECIPE_FOUND, recipe)
 })
 
-/**Deletes a recipe by user ID.
- * Ensures the recipe exists before deletion.
- */
-// const deleteRecipe = asyncHandler(async (req, res) => {
-//     const { userId } = req.body
-
-//     if (!userId) {
-//         return responseHandler(res)
-//         return res.status(400).json({ message: 'RecipeId is required fields.' })
-//     }
-
-//     const user = await Recipe.findOne({ userId }).lean()
-//     if (!user) {
-//         return responseHandler(res)
-//         return res.status(400).json({ message: 'Recipe not Found' })
-//     }
-//     const deletedRecipe = await Recipe.deleteOne()
-
-//     const reply = `Recipename ${deletedRecipe.username} deleted`
-//     return responseHandler(res)
-//     return res.status(200).json({ message: reply })
-// })
-
 /**Searches for recipes containing a specific ingredient.
  * Returns matching recipes along with their ratings.
  */

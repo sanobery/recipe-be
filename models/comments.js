@@ -5,11 +5,13 @@ const rateSchema = new Schema({
         type: Schema.Types.ObjectId,
         required: true,
         ref: 'recipe',
+        index: true,
     },
     userId: {
         type: Schema.Types.ObjectId,
         required: true,
         ref: 'users',
+        index: true,
     },
     comment: {
         type: String,

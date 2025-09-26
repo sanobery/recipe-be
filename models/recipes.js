@@ -13,6 +13,7 @@ const receipeSchema = new Schema({
     ingredients: {
         type: [String],
         required: true,
+        index: true,
     },
     steps: {
         type: [String],
@@ -25,6 +26,7 @@ const receipeSchema = new Schema({
     preparationTime: {
         type: Number,
         required: true,
+        index: true,
     },
     createdAt: {
         type: Date,

@@ -1,4 +1,3 @@
-// server.js
 import dotenv from 'dotenv'
 import process from 'process'
 dotenv.config()
@@ -12,6 +11,7 @@ import db from './config/db.js'
 import { swaggerDocs, swaggerUi } from './utils/swagger.js'
 import authRoute from './routes/authRoute.js'
 import recipeRoute from './routes/recipeRoute.js'
+import logger from './middleware/logger.js'
 
 const app = express()
 const PORT = process.env.PORT || 3500
@@ -43,13 +43,9 @@ app.all('*', (req, resp) => {
 
 // Database + Start server (only in local dev)
 db().then(() => {
-    if (process.env.VERCEL) {
-        console.log('Running on Vercel – no need to call app.listen()')
-    } else {
-        app.listen(PORT, () => {
-            console.log(`Server running locally on PORT ${PORT}`)
-        })
-    }
+    app.listen(PORT, () => {
+        logger.info(`Server running locally on PORT ${PORT}`)
+    })
 })
 
 // ✅ Export app for Vercel
