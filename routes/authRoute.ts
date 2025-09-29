@@ -1,3 +1,17 @@
+/**
+ * User Routes
+ * ------------
+ * Defines all API endpoints related to user operations such as registration, login,
+ * profile retrieval, and profile updates.
+ *
+ * Usage:
+ * - Public routes: /signup, /login
+ * - Protected routes (require JWT): /profile (GET, PUT)
+ *
+ * Notes:
+ * - Controllers handle business logic
+ * - Repository handle database interaction
+ */
 import { Router } from 'express'
 const router = Router()
 import {
@@ -7,7 +21,7 @@ import {
     getCurrentUser,
     createNewUser,
     updateUser,
-} from '../controllers/authController.js'
+} from '../controllers/authController'
 
 /**
  * @swagger
@@ -41,7 +55,7 @@ import {
  *               password:
  *                 type: string
  *                 format: password
- *                 example: "123456"
+ *                 example: "U2FsdGVkX19GdboUFAqnrLnYFQRIFxx0IpX0EwSbeNM"
  *                 description: User's password
  *     responses:
  *       200:

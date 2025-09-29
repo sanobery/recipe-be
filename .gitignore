@@ -3,3 +3,4 @@ logs
 .env
 uploads
 config/allowedOrigins.js
+dist

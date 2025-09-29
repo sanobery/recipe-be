@@ -1,17 +1,17 @@
 import dotenv from 'dotenv'
 import process from 'process'
-dotenv.config()
 import express from 'express'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import { join } from 'path'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
-import corsOrigins from './config/corsOrigins.js'
-import db from './config/db.js'
-import { swaggerDocs, swaggerUi } from './utils/swagger.js'
-import authRoute from './routes/authRoute.js'
-import recipeRoute from './routes/recipeRoute.js'
-import logger from './middleware/logger.js'
+import corsOrigins from './config/corsOrigins'
+import { connectDB } from './config/db'
+import { swaggerDocs, swaggerUi } from './utils/swagger'
+import authRoute from './routes/authRoute'
+import recipeRoute from './routes/recipeRoute'
+import logger from './middleware/logger'
+
+dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3500
@@ -19,11 +19,7 @@ const PORT = process.env.PORT || 3500
 // Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs))
 
-// dirname setup
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-// Middlewares
+// // Middlewares
 app.use(cors(corsOrigins))
 app.use(cookieParser())
 app.use(express.json())
@@ -36,16 +32,14 @@ app.use('/uploads', express.static(join(__dirname, 'uploads')))
 app.use('/auth', authRoute)
 app.use('/recipe', recipeRoute)
 
-// 404 fallback
+// // 404 fallback
 app.all('*', (req, resp) => {
     resp.sendFile(join(__dirname, 'views', '404.html'))
 })
 
 // Database + Start server (only in local dev)
-db().then(() => {
-    app.listen(PORT, () => {
-        logger.info(`Server running locally on PORT ${PORT}`)
-    })
+connectDB().then(() => {
+    app.listen(PORT, () => logger.info(`Server running on port ${PORT}`))
 })
 
 // ✅ Export app for Vercel
